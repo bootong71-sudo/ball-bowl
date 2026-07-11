@@ -1,0 +1,610 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>玉入れカウントバトル Pro 4.2</title>
+    <style>
+        body {
+            font-family: 'Helvetica Neue', Arial, sans-serif;
+            text-align: center;
+            background-color: #f0f2f5;
+            margin: 0;
+            padding: 20px;
+            overflow: hidden;
+            user-select: none;
+        }
+        h1 { color: #333; margin-bottom: 5px; }
+        
+        /* スコアボード */
+        .score-board {
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            max-width: 700px;
+            margin: 0 auto 15px auto;
+            background: white;
+            padding: 10px;
+            border-radius: 10px;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+        }
+        .team-info { font-size: 26px; font-weight: bold; }
+        .red-text { color: #ff3b30; }
+        .blue-text { color: #007aff; }
+        
+        .timer-container { display: flex; flex-direction: column; align-items: center; }
+        .timer-label { font-size: 12px; color: #666; font-weight: bold; margin-bottom: 2px; }
+        .timer {
+            font-size: 28px; font-weight: bold;
+            background: #333; color: #ffcc00;
+            padding: 2px 20px; border-radius: 5px; min-width: 60px;
+        }
+
+        /* ゲームメインコンテナ */
+        .game-container {
+            position: relative;
+            width: 100%;
+            max-width: 1000px;
+            height: 520px;
+            background: #e5e5ea;
+            margin: 0 auto;
+            border-radius: 15px;
+            box-shadow: inset 0 2px 10px rgba(0,0,0,0.2);
+            overflow: hidden;
+            cursor: pointer;
+        }
+
+        /* カゴの配置 */
+        .basket-system {
+            position: absolute;
+            bottom: 0;
+            width: 230px; 
+            height: 420px; 
+            z-index: 2;
+        }
+        .basket-red { left: 13%; transform: translateX(-50%); }
+        .basket-blue { left: 87%; transform: translateX(-50%); }
+
+        .pole {
+            position: absolute;
+            bottom: 0;
+            left: 111px; 
+            width: 8px;
+            height: 260px;
+            background: #8e8e93;
+        }
+        
+        .basket-container {
+            position: absolute;
+            top: 40px;
+            left: 0;
+            width: 230px; 
+            height: 140px; 
+            background: rgba(210, 180, 140, 0.85);
+            border: 4px solid #8b5a2b;
+            border-radius: 0 0 30px 30px;
+            box-shadow: 0 5px 8px rgba(0,0,0,0.2);
+            z-index: 3;
+            overflow: hidden;
+        }
+        
+        .basket-balls {
+            position: absolute;
+            left: 11px; bottom: 5px;
+            width: 200px; 
+            display: grid;
+            grid-template-columns: repeat(10, 20px);
+            grid-auto-rows: 20px;
+            gap: 0px;
+        }
+
+        .players { position: absolute; bottom: 10px; font-size: 65px; display: flex; gap: 10px; z-index: 2; line-height: 1; }
+        .red-players { left: 10px; }
+        .blue-players { right: 10px; transform: scaleX(-1); }
+
+        .ball {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            z-index: 5;
+        }
+        .ball-absolute { position: absolute; }
+        .red-ball { background: #ff3b30; box-shadow: inset -3px -3px rgba(0,0,0,0.3); }
+        .blue-ball { background: #007aff; box-shadow: inset -3px -3px rgba(0,0,0,0.3); }
+
+        /* 中央集計エリア（上下分割） */
+        .count-zone {
+            position: absolute;
+            top: 15px;
+            left: 26%;
+            width: 48%;
+            height: 490px;
+            background: rgba(255,255,255,0.92);
+            border-radius: 12px;
+            border: 3px dashed #555;
+            z-index: 4;
+            display: none; 
+            box-sizing: border-box;
+            padding: 8px;
+        }
+        
+        .count-section {
+            height: 215px;
+            width: 100%;
+            box-sizing: border-box;
+            padding: 5px;
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+        }
+        .section-red { background: rgba(255, 59, 48, 0.05); margin-bottom: 10px; border: 1px solid rgba(255, 59, 48, 0.1); }
+        .section-blue { background: rgba(0, 122, 255, 0.05); border: 1px solid rgba(0, 122, 255, 0.1); }
+
+        .section-title {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 3px;
+        }
+        
+        .count-grid {
+            display: grid;
+            grid-template-columns: repeat(10, 20px);
+            grid-auto-rows: 20px;
+            gap: 4px;
+            justify-content: center;
+            width: 100%;
+            max-height: 160px;
+            overflow-y: auto;
+            align-content: flex-start;
+        }
+
+        .main-count-title {
+            font-size: 24px;
+            font-weight: bold;
+            color: #333;
+            margin-bottom: 5px;
+            background: #ffcc00;
+            border-radius: 20px;
+            padding: 2px 10px;
+            display: inline-block;
+        }
+
+        /* キー表示 */
+        .key-guide { display: flex; justify-content: space-between; max-width: 1000px; margin: 20px auto; }
+        .key-group { display: flex; gap: 5px; }
+        .key-cap {
+            width: 45px; height: 45px; border-radius: 8px;
+            display: flex; align-items: center; justify-content: center;
+            font-weight: bold; font-size: 18px; color: white; box-shadow: 0 4px #999; transition: all 0.05s;
+        }
+        .key-red { background-color: #ff3b30; box-shadow: 0 4px #b3241c; }
+        .key-blue { background-color: #007aff; box-shadow: 0 4px #0056b3; }
+        .key-active { transform: translateY(4px); box-shadow: 0 0px #000; }
+
+        /* オーバーレイ */
+        .overlay {
+            position: fixed;
+            top: 0; left: 0; width: 100%; height: 100%;
+            background: rgba(0,0,0,0.85);
+            display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; z-index: 10;
+        }
+        .btn {
+            padding: 15px 40px; font-size: 24px; font-weight: bold; background: #ea4335; color: white;
+            border: none; border-radius: 30px; cursor: pointer; box-shadow: 0 4px 10px rgba(0,0,0,0.3); margin-top: 25px;
+        }
+        .btn:hover { background: #d33828; }
+        .btn-orange { background: #ff9500; }
+        .btn-orange:hover { background: #e08400; }
+        
+        .settings-box { background: rgba(255, 255, 255, 0.1); padding: 15px 30px; border-radius: 10px; margin-top: 15px; }
+        .settings-box input { font-size: 20px; width: 80px; padding: 5px; text-align: center; border-radius: 5px; border: none; font-weight: bold; }
+        .win-message { font-size: 50px; font-weight: bold; margin-bottom: 20px; }
+    </style>
+</head>
+<body>
+
+    <h1>玉入れカウントバトル Pro 4.2</h1>
+
+    <div class="score-board">
+        <div class="team-info red-text">赤組: <span id="red-score">0</span>コ</div>
+        <div class="timer-container">
+            <span class="timer-label">のこり時間</span>
+            <div class="timer" id="timer-display">20</div>
+        </div>
+        <div class="team-info blue-text">白組: <span id="blue-score">0</span>コ</div>
+    </div>
+
+    <div class="game-container" id="game-container" onclick="initAudio()">
+        <div class="basket-system basket-red">
+            <div class="pole"></div>
+            <div class="basket-container">
+                <div class="basket-balls" id="red-basket-balls"></div>
+            </div>
+        </div>
+
+        <div class="count-zone" id="count-zone">
+            <div class="main-count-title" id="global-counter">0</div>
+            <div class="count-section section-red">
+                <div class="section-title red-text">🔴 赤組: <span id="live-red-counter">0</span></div>
+                <div class="count-grid" id="red-count-grid"></div>
+            </div>
+            <div class="count-section section-blue">
+                <div class="section-title blue-text">🔵 白組: <span id="live-blue-counter">0</span></div>
+                <div class="count-grid" id="blue-count-grid"></div>
+            </div>
+        </div>
+
+        <div class="basket-system basket-blue">
+            <div class="pole"></div>
+            <div class="basket-container">
+                <div class="basket-balls" id="blue-basket-balls"></div>
+            </div>
+        </div>
+        
+        <div class="players red-players"><span>👦</span><span>👧</span></div>
+        <div class="players blue-players"><span>👧</span><span>👦</span></div>
+    </div>
+
+    <div class="key-guide">
+        <div class="key-group"><div class="key-cap key-red" id="key-1">1</div><div class="key-cap key-red" id="key-2">2</div><div class="key-cap key-red" id="key-3">3</div><div class="key-cap key-red" id="key-4">4</div><div class="key-cap key-red" id="key-5">5</div></div>
+        <div class="key-group"><div class="key-cap key-blue" id="key-6">6</div><div class="key-cap key-blue" id="key-7">7</div><div class="key-cap key-blue" id="key-8">8</div><div class="key-cap key-blue" id="key-9">9</div><div class="key-cap key-blue" id="key-0">0</div></div>
+    </div>
+
+    <div class="overlay" id="start-overlay">
+        <h2>玉入れカウントバトル Pro 4.2</h2>
+        <p>🔥 綱引き太鼓BGM搭載！画面をタッチして始めてね！</p>
+        <div class="settings-box">
+            <label>⏱️ 制限時間設定: </label>
+            <input type="number" id="time-setting" value="20" min="5"> 秒
+        </div>
+        <button class="btn" onclick="startGame()">オーディオを有効にして開始！ 🥁</button>
+    </div>
+
+    <div class="overlay" id="end-overlay" style="display: none;">
+        <div class="win-message" style="color: #ffcc00; font-size: 70px;">終了！！</div>
+        <p>いっしょにスピードカウントをはじめよう！</p>
+        <button class="btn btn-orange" onclick="startSimultaneousCounting()">結果発表をみる 📊</button>
+    </div>
+
+    <div class="overlay" id="result-overlay" style="display: none;">
+        <div class="win-message" id="win-text"></div>
+        <div style="font-size: 28px; margin-bottom: 25px; font-weight: bold;" id="final-score-text"></div>
+        <button class="btn" onclick="resetGame()">もう一度あそぶ</button>
+    </div>
+
+    <script>
+        const gameContainer = document.getElementById('game-container');
+        const redBasket = document.getElementById('red-basket-balls');
+        const blueBasket = document.getElementById('blue-basket-balls');
+        const redScoreDisplay = document.getElementById('red-score');
+        const blueScoreDisplay = document.getElementById('blue-score');
+        const timerDisplay = document.getElementById('timer-display');
+        const startOverlay = document.getElementById('start-overlay');
+        const endOverlay = document.getElementById('end-overlay');
+        const resultOverlay = document.getElementById('result-overlay');
+        const countZone = document.getElementById('count-zone');
+        
+        const redCountGrid = document.getElementById('red-count-grid');
+        const blueCountGrid = document.getElementById('blue-count-grid');
+        const liveRedCounter = document.getElementById('live-red-counter');
+        const liveBlueCounter = document.getElementById('live-blue-counter');
+        const globalCounter = document.getElementById('global-counter');
+
+        const winText = document.getElementById('win-text');
+        const finalScoreText = document.getElementById('final-score-text');
+        const timeSettingInput = document.getElementById('time-setting');
+
+        let redScore = 0;
+        let blueScore = 0;
+        let timeLeft = 20; 
+        let gameActive = false;
+        let gameTimer = null;
+        let bgmTick = 0; // 太鼓のリズムカウント用
+
+        const redKeys = ['1', '2', '3', '4', '5'];
+        const blueKeys = ['6', '7', '8', '9', '0'];
+
+        let audioCtx = null;
+        let bgmInterval = null;
+
+        function initAudio() {
+            if (!audioCtx) {
+                audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            }
+            if (audioCtx.state === 'suspended') {
+                audioCtx.resume();
+            }
+        }
+
+        // 太鼓の「ドン」という低い音を作るシンセサイザー
+        function playTaiko(freq, duration, volume = 0.3) {
+            if (!audioCtx) return;
+            try {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = "sine";
+                
+                // ドン…とピッチが急速に下がる和太鼓特有の音のシミュレーション
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                osc.frequency.exponentialRampToValueAtTime(10, audioCtx.currentTime + duration);
+                
+                gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        // 応援の「ピピッ！」というホイッスル
+        function playWhistle(freq, duration, volume = 0.05) {
+            if (!audioCtx) return;
+            try {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = "square";
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+                gain.gain.linearRampToValueAtTime(0.0001, audioCtx.currentTime + duration);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        function playTone(freq, type, duration, volume = 0.1) {
+            if (!audioCtx) return;
+            try {
+                let osc = audioCtx.createOscillator();
+                let gain = audioCtx.createGain();
+                osc.type = type;
+                osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+                gain.gain.setValueAtTime(volume, audioCtx.currentTime);
+                gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + duration);
+                osc.connect(gain); gain.connect(audioCtx.destination);
+                osc.start(); osc.stop(audioCtx.currentTime + duration);
+            } catch(e) {}
+        }
+
+        function speakNumber(numberString, callback) {
+            const utterance = new SpeechSynthesisUtterance(numberString);
+            utterance.lang = 'ja-JP';
+            utterance.rate = 1.6; 
+            utterance.pitch = 1.2; 
+            if (callback) utterance.onend = callback;
+            window.speechSynthesis.speak(utterance);
+        }
+
+        function startGame() {
+            initAudio();
+            
+            let selectedTime = parseInt(timeSettingInput.value);
+            timeLeft = (isNaN(selectedTime) || selectedTime <= 0) ? 20 : selectedTime;
+            timerDisplay.innerText = timeLeft;
+
+            redScore = 0; blueScore = 0;
+            redScoreDisplay.innerText = "0"; blueScoreDisplay.innerText = "0";
+            redBasket.innerHTML = ""; blueBasket.innerHTML = "";
+            
+            redCountGrid.innerHTML = ""; blueCountGrid.innerHTML = "";
+            liveRedCounter.innerText = "0"; liveBlueCounter.innerText = "0";
+            globalCounter.innerText = "0";
+            countZone.style.display = 'none';
+
+            gameActive = true;
+            startOverlay.style.display = 'none';
+            bgmTick = 0;
+            
+            // 【新機能】綱引き専用・和太鼓BGM（ドン、ドン、ドコドコ！）
+            bgmInterval = setInterval(() => {
+                if(gameActive) {
+                    let beat = bgmTick % 8;
+                    if (beat === 0 || beat === 4) {
+                        playTaiko(90, 0.2, 0.4); // ドン！
+                    } else if (beat === 2 || beat === 6) {
+                        playTaiko(75, 0.15, 0.3); // カツ！(少し低め)
+                    } else if (beat === 7) {
+                        playTaiko(90, 0.08, 0.3); // ドコ
+                        setTimeout(() => playTaiko(90, 0.08, 0.3), 60); // ドコ！
+                    }
+                    
+                    // 4拍に1回応援のホイッスルを入れる
+                    if (beat === 0) {
+                        playWhistle(1200, 0.06, 0.02);
+                    }
+                    bgmTick++;
+                }
+            }, 180); // アップテンポな祭り拍子
+            
+            gameTimer = setInterval(() => {
+                timeLeft--;
+                timerDisplay.innerText = timeLeft;
+                if (timeLeft <= 0) endGame();
+            }, 1000);
+        }
+
+        function throwBallParabola(team) {
+            const ball = document.createElement('div');
+            ball.classList.add('ball', 'ball-absolute');
+            
+            let startX, startY = gameContainer.offsetHeight - 50;
+            let targetX, targetY = 100;
+
+            if (team === 'red') {
+                ball.classList.add('red-ball');
+                startX = 80; targetX = gameContainer.offsetWidth * 0.12;
+            } else {
+                ball.classList.add('blue-ball');
+                startX = gameContainer.offsetWidth - 100; targetX = gameContainer.offsetWidth * 0.88;
+            }
+            
+            ball.style.left = startX + 'px'; ball.style.top = startY + 'px';
+            gameContainer.appendChild(ball);
+
+            const isSuccess = Math.random() < 0.70;
+            if (!isSuccess) {
+                targetX += (Math.random() > 0.5 ? 55 : -55);
+                targetY += 40;
+            }
+
+            const duration = 450;
+            const startTime = performance.now();
+            const peakHeight = 80;
+
+            function animateBall(now) {
+                let progress = (now - startTime) / duration;
+                if (progress > 1) progress = 1;
+
+                let currentX = startX + (targetX - startX) * progress;
+                let linearY = startY + (targetY - startY) * progress;
+                let parabolaArc = peakHeight * 4 * progress * (1 - progress);
+                let currentY = linearY - parabolaArc;
+
+                ball.style.left = currentX + 'px';
+                ball.style.top = currentY + 'px';
+
+                if (progress < 1) {
+                    requestAnimationFrame(animateBall);
+                } else {
+                    if (isSuccess) {
+                        playTone(600, "sine", 0.04, 0.04);
+                        if (team === 'red') {
+                            redScore++;
+                            redScoreDisplay.innerText = redScore;
+                            addBallToBasket(redBasket, 'red');
+                        } else {
+                            blueScore++;
+                            blueScoreDisplay.innerText = blueScore;
+                            addBallToBasket(blueBasket, 'blue');
+                        }
+                        ball.remove();
+                    } else {
+                        playTone(180, "sine", 0.05, 0.04);
+                        ball.style.transition = "top 0.2s ease-in, opacity 0.2s";
+                        ball.style.top = (gameContainer.offsetHeight - 20) + 'px';
+                        ball.style.opacity = 0;
+                        setTimeout(() => ball.remove(), 200);
+                    }
+                }
+            }
+            requestAnimationFrame(animateBall);
+        }
+
+        function addBallToBasket(basketElement, team) {
+            const b = document.createElement('div');
+            b.classList.add('ball', team === 'red' ? 'red-ball' : 'blue-ball');
+            basketElement.appendChild(b);
+        }
+
+        function endGame() {
+            gameActive = false;
+            clearInterval(gameTimer);
+            clearInterval(bgmInterval);
+            playTone(330, "square", 0.2, 0.1);
+            setTimeout(() => playTone(440, "square", 0.4, 0.1), 150);
+            endOverlay.style.display = 'flex';
+        }
+
+        function startSimultaneousCounting() {
+            initAudio();
+            endOverlay.style.display = 'none';
+            countZone.style.display = 'block';
+            
+            let currentStep = 0;
+            const maxScore = Math.max(redScore, blueScore);
+
+            function countNext() {
+                if (currentStep >= maxScore) {
+                    setTimeout(explainMathSummary, 500);
+                    return;
+                }
+
+                currentStep++;
+                globalCounter.innerText = currentStep;
+
+                if (currentStep <= redScore) {
+                    if (redBasket.lastChild) redBasket.lastChild.remove();
+                    const dot = document.createElement('div');
+                    dot.classList.add('ball', 'red-ball');
+                    redCountGrid.appendChild(dot);
+                    liveRedCounter.innerText = currentStep;
+                }
+
+                if (currentStep <= blueScore) {
+                    if (blueBasket.lastChild) blueBasket.lastChild.remove();
+                    const dot = document.createElement('div');
+                    dot.classList.add('ball', 'blue-ball');
+                    blueCountGrid.appendChild(dot);
+                    liveBlueCounter.innerText = currentStep;
+                }
+
+                playTone(523 + (currentStep * 3), "sine", 0.04, 0.05);
+
+                speakNumber(String(currentStep), () => {
+                    setTimeout(countNext, 50);
+                });
+            }
+
+            countNext();
+        }
+
+        function explainMathSummary() {
+            let phrase = `あかぐみ、${redScore}こ！ しろぐみ、${blueScore}こ！`;
+            speakNumber(phrase, () => {
+                setTimeout(showFinalResult, 800);
+            });
+        }
+
+        function showFinalResult() {
+            countZone.style.display = 'none';
+            
+            if (redScore > blueScore) {
+                winText.innerHTML = "🔴 赤組の勝利！！ 🔴";
+                speakNumber("あかぐみの かち！");
+            } else if (blueScore > redScore) {
+                winText.innerHTML = "🔵 白組の勝利！！ 🔵";
+                speakNumber("しろぐみの かち！");
+            } else {
+                winText.innerHTML = "🤝 引き分け！！ 🤝";
+                speakNumber("ひきわけです！");
+            }
+
+            finalScoreText.innerText = `赤組：${redScore}こ ｜ 白組：${blueScore}こ`;
+            resultOverlay.style.display = 'flex';
+        }
+
+        function resetGame() {
+            resultOverlay.style.display = 'none';
+            startOverlay.style.display = 'flex';
+            redCountGrid.innerHTML = "";
+            blueCountGrid.innerHTML = "";
+            liveRedCounter.innerText = "0";
+            liveBlueCounter.innerText = "0";
+            globalCounter.innerText = "0";
+            document.querySelectorAll('.ball-absolute').forEach(b => b.remove());
+        }
+
+        // キー入力
+        window.addEventListener('keydown', (e) => {
+            if (!gameActive || e.repeat) return;
+            let key = e.key;
+            if (redKeys.includes(key)) {
+                throwBallParabola('red');
+                let el = document.getElementById(`key-${key}`);
+                if (el) el.classList.add('key-active');
+            }
+            if (blueKeys.includes(key)) {
+                throwBallParabola('blue');
+                let el = document.getElementById(`key-${key}`);
+                if (el) el.classList.add('key-active');
+            }
+        });
+
+        window.addEventListener('keyup', (e) => {
+            let key = e.key;
+            let el = document.getElementById(`key-${key}`);
+            if (el) el.classList.remove('key-active');
+        });
+    </script>
+</body>
+</html>
